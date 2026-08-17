@@ -1,7 +1,7 @@
 description: |
-  Sensor driver for the pixart PMW3610 mouse sensor
+  Sensor driver for the pixart PMW3610 mouse sensor (MCK variant)
 
-compatible: "pixart,pmw3610"
+compatible: "zmk,pmw3610-mck"
 
 include: spi-device.yaml
 
@@ -31,7 +31,7 @@ child-binding:
       type: phandle-array
       required: true
     tick:
-      description: "Required ticks to trigger a ball action. Higher values require more movement to trigger a ball action. If omitted, CONFIG_PMW3610_BALL_ACTION_TICK will be used."
+      description: "Required ticks to trigger a ball action. Higher values require more movement to trigger a ball action. If omitted, CONFIG_PMW3610_MCK_BALL_ACTION_TICK will be used."
       type: int
     wait-ms:
       description: "Time to wait (in milliseconds) before triggering the next behavior binding. If omitted, it will be set to 0."

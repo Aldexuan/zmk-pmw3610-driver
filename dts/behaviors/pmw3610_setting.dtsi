@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2024 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        pms: behavior_pmw3610_mck_setting {
+            compatible = "zmk,behavior-pmw3610-mck-setting";
+            display-name = "PMW3610-MCK Setting";
+            #binding-cells = <1>;
+        };
+    };
+};

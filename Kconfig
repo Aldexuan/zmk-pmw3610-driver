@@ -5,15 +5,15 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-menuconfig PMW3610
-    bool "PMW3610 mouse optical sensor"
+menuconfig PMW3610_MCK
+    bool "PMW3610-MCK mouse optical sensor"
   select SPI
     help
-      Enable PMW3610 mouse optical sensor.
+      Enable PMW3610-MCK mouse optical sensor.
 
-if PMW3610
+if PMW3610_MCK
 
-config PMW3610_SMART_ALGORITHM
+config PMW3610_MCK_SMART_ALGORITHM
   bool "Enable an algorithm of PMW3610 to enhance surface coverage"
   default y
   help
@@ -21,61 +21,66 @@ config PMW3610_SMART_ALGORITHM
     The algorithm is used to extend the tracking acrocss a wider range of surfaces
     such as graniles and tiles.
 
-config PMW3610_CPI
+config PMW3610_MCK_CPI
     int "PMW3610's default CPI"
     default 800
     range 200 3200
     help
       Default CPI value, with 200 step
 
-config PMW3610_CPI_DIVIDOR
+config PMW3610_MCK_CPI_DIVIDOR
     int "PMW3610's default CPI dividor"
     default 1
     range 1 100
     help
       Default CPI dividor value.
 
-config PMW3610_SNIPE_CPI
+config PMW3610_MCK_SNIPE_CPI
     int "PMW3610's CPI in snipe mode"
     default 200
     range 200 3200
     help
       Snipe CPI value, with 200 step
 
-config PMW3610_SNIPE_CPI_DIVIDOR
+config PMW3610_MCK_SNIPE_CPI_DIVIDOR
     int "PMW3610's CPI dividor in snipe mode"
     default 1
     range 1 100
     help
       Snipe CPI dividor value.
 
-config PMW3610_SCROLL_TICK
+config PMW3610_MCK_SCROLL_TICK
     int "PMW3610's required ticks to produce a scroll report"
     default 20
     help
       Scroll tick value.
 
+config PMW3610_MCK_SCROLL_TICK_STEP
+    int "PMW3610's scroll tick step per setting-behavior press"
+    default 5
+    range 1 100
+    help
+      Amount added/removed to the scroll tick threshold each time the
+      zmk,behavior-pmw3610-mck-setting behavior is pressed with
+      PMW_SCROLL_SPEED_UP / PMW_SCROLL_SPEED_DOWN.
+      Smaller tick = faster scrolling, larger tick = slower scrolling.
+
 choice
     prompt "Select PMW3610's polling rate"
-    default PMW3610_POLLING_RATE_250
+    default PMW3610_MCK_POLLING_RATE_250
 
-config PMW3610_POLLING_RATE_250
+config PMW3610_MCK_POLLING_RATE_250
     bool "250 Hz"
 
-config PMW3610_POLLING_RATE_125
+config PMW3610_MCK_POLLING_RATE_125
     bool "125 Hz"
 
-config PMW3610_POLLING_RATE_125_SW
+config PMW3610_MCK_POLLING_RATE_125_SW
     bool "125 Hz with software implementation"
 
 endchoice
 
-config PMW3610_FORCE_AWAKE
-    bool "PMW3610 forced awake mode"
-    help
-      This setting forces the sensor to always be in the RUN state.
-
-config PMW3610_RUN_DOWNSHIFT_TIME_MS
+config PMW3610_MCK_RUN_DOWNSHIFT_TIME_MS
     int "PMW3610's default RUN mode downshift time"
     default 128
     range 13 3264
@@ -83,83 +88,83 @@ config PMW3610_RUN_DOWNSHIFT_TIME_MS
       Default RUN mode downshift down time in milliseconds.
       Time after which sensor goes from RUN to REST1 mode.
 
-config PMW3610_REST1_SAMPLE_TIME_MS
+config PMW3610_MCK_REST1_SAMPLE_TIME_MS
     int "PMW3610's sample time in REST1 stage"
     default 40
     range 10 2550
     help
       Default REST1 mode sample period in millisecond
 
-config PMW3610_REST1_DOWNSHIFT_TIME_MS
+config PMW3610_MCK_REST1_DOWNSHIFT_TIME_MS
     int "PMW3610's default REST1 mode downshift time"
     default 9600
     help
       Default REST1 mode downshift down time in milliseconds.
       Time after which sensor goes from REST1 to REST2 mode.
 
-config PMW3610_REST2_SAMPLE_TIME_MS
+config PMW3610_MCK_REST2_SAMPLE_TIME_MS
     int "PMW3610's sample time in REST2 stage"
-    default 0
+    default 100
     range 0 2550
     help
       Default REST2 mode sample period in millisecond.
       Minimum value is 10.
-      No optimal value provided by datasheet.
+      ✅ 混合策略：启用 REST2（100ms），实现完整降频链 REST1→REST2→REST3
 
-config PMW3610_REST2_DOWNSHIFT_TIME_MS
+config PMW3610_MCK_REST2_DOWNSHIFT_TIME_MS
     int "PMW3610's default REST2 mode downshift time"
-    default 0
+    default 19200
     help
       Default REST2 mode downshift down time in milliseconds.
       Time after which sensor goes from REST2 to REST3 mode.
-      No optimal value provided by datasheet.
+      ✅ 混合策略：19.2秒后进入 REST3（最低功耗）
 
-config PMW3610_REST3_SAMPLE_TIME_MS
+config PMW3610_MCK_REST3_SAMPLE_TIME_MS
     int "PMW3610's sample time in REST3 stage"
-    default 0
+    default 500
     range 0 2550
     help
-      Default REST2 mode sample period in millisecond.
+      Default REST3 mode sample period in millisecond.
       Minimum value is 10.
-      No optimal value provided by datasheet.
+      ✅ 混合策略：启用 REST3（500ms），最低功耗模式
 
 choice
     prompt "Select PMW3610 sensor orientation"
-    default PMW3610_ORIENTATION_0
+    default PMW3610_MCK_ORIENTATION_0
 
-config PMW3610_ORIENTATION_0
+config PMW3610_MCK_ORIENTATION_0
     bool "PMW3610 not rotated"
 
-config PMW3610_ORIENTATION_90
+config PMW3610_MCK_ORIENTATION_90
     bool "PMW3610 rotated 90 deg clockwise"
 
-config PMW3610_ORIENTATION_180
+config PMW3610_MCK_ORIENTATION_180
     bool "PMW3610 rotated 180 deg clockwise"
 
-config PMW3610_ORIENTATION_270
+config PMW3610_MCK_ORIENTATION_270
     bool "PMW3610 rotated 270 deg clockwise"
 
 endchoice
 
-config PMW3610_INVERT_X
+config PMW3610_MCK_INVERT_X
   bool "Invert the X axis of PMW3610 sensor"
 
-config PMW3610_INVERT_Y
+config PMW3610_MCK_INVERT_Y
   bool "Invert the Y axis of PMW3610 sensor"
 
-config PMW3610_INVERT_SCROLL_X
+config PMW3610_MCK_INVERT_SCROLL_X
   bool "Invert the X axis of the scroll"
-  default PMW3610_INVERT_X
+  default PMW3610_MCK_INVERT_X
 
-config PMW3610_INVERT_SCROLL_Y
+config PMW3610_MCK_INVERT_SCROLL_Y
   bool "Invert the Y axis of the scroll"
-  default PMW3610_INVERT_Y
+  default PMW3610_MCK_INVERT_Y
 
-config PMW3610_AUTOMOUSE_TIMEOUT_MS
+config PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS
   int "Amount of milliseconds the mouse layer will be active after using the trackball"
   default 400
 
-config PMW3610_MOVEMENT_THRESHOLD
+config PMW3610_MCK_MOVEMENT_THRESHOLD
     int "Movement threshold for automatic mouse layer activation"
     default 5
     help
@@ -167,14 +172,63 @@ config PMW3610_MOVEMENT_THRESHOLD
         A higher value means more movement is required to activate the mouse layer.
         This helps prevent accidental activation during typing.
 
-config PMW3610_BALL_ACTION_TICK
+config PMW3610_MCK_BALL_ACTION_TICK
     int "PMW3610's required ticks to trigger a ball action"
     default 20
     help
         Ball action tick value. Higher values require more movement to trigger a ball action.
 
-module = PMW3610
-module-str = PMW3610
+config PMW3610_MCK_SCROLL_ACCELERATION
+    bool "Enable scroll acceleration"
+    default n
+    help
+      Enable acceleration for scrolling based on movement speed.
+
+config PMW3610_MCK_SCROLL_ACCELERATION_SENSITIVITY
+    int "Scroll acceleration sensitivity (1-10)"
+    default 3
+    range 1 10
+    depends on PMW3610_MCK_SCROLL_ACCELERATION
+    help
+      Scrolling acceleration sensitivity. Higher values make scrolling more responsive with stronger acceleration.
+
+config PMW3610_MCK_ACCELERATION_ALGORITHM
+    int "Acceleration algorithm (0=none, 1=quadratic, 2=sigmoid)"
+    default 0
+    range 0 2
+    help
+      Select the mouse acceleration algorithm:
+      0 = Disabled (no acceleration)
+      1 = Quadratic (QMK-style) - distance-based, formula: output = x * (1 + |x|/divider)
+          Simple and predictable - larger movements get proportionally more acceleration.
+      2 = Sigmoid (speed-based) - uses movement speed over time with S-curve.
+          Smoother transition between slow and fast movements.
+
+config PMW3610_MCK_ACCELERATION_SENSITIVITY
+    int "Acceleration sensitivity (1-100)"
+    default 3
+    range 1 100
+    depends on PMW3610_MCK_ACCELERATION_ALGORITHM > 0
+    help
+      Acceleration sensitivity. Higher values make mouse movement more responsive with stronger acceleration.
+
+config PMW3610_MCK_CPI_STEP
+    int "PMW3610's CPI step per setting-behavior press"
+    default 200
+    range 200 3200
+    help
+      Amount of CPI added/removed each time the zmk,behavior-pmw3610-setting
+      behavior is pressed with PMW_CPI_INCR / PMW_CPI_DECR. Must be a
+      multiple of 200 (sensor hardware step).
+
+module = PMW3610_MCK
+module-str = PMW3610_MCK
 source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
-endif #PMW3610
+endif #PMW3610_MCK
+
+DT_COMPAT_ZMK_BEHAVIOR_PMW3610_MCK_SETTING := zmk,behavior-pmw3610-mck-setting
+
+config ZMK_BEHAVIOR_PMW3610_MCK_SETTING
+    bool
+    default PMW3610_MCK && $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_PMW3610_MCK_SETTING))

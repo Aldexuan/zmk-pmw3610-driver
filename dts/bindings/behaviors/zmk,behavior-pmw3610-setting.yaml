@@ -1,0 +1,5 @@
+description: PMW3610-MCK runtime setting behavior
+
+compatible: "zmk,behavior-pmw3610-mck-setting"
+
+include: one_param.yaml

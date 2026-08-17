@@ -23,15 +23,33 @@ struct pixart_data {
 
     enum pixart_input_mode curr_mode;
     uint32_t curr_cpi;
+    /* Runtime-adjustable MOVE/SCROLL/BALL_ACTION CPI (initialised to
+     * CONFIG_PMW3610_MCK_CPI, updated by zmk_pmw3610_cpi_change()). */
+    uint32_t runtime_cpi;
+    /* Runtime-adjustable SNIPE CPI (initialised to CONFIG_PMW3610_MCK_SNIPE_CPI,
+     * updated by zmk_pmw3610_snipe_cpi_change()). */
+    uint32_t runtime_snipe_cpi;
+    /* Runtime-adjustable scroll tick threshold (initialised to
+     * CONFIG_PMW3610_MCK_SCROLL_TICK, updated by zmk_pmw3610_scroll_tick_change()).
+     * Smaller = faster scrolling, larger = slower. */
+    uint32_t runtime_scroll_tick;
     int32_t scroll_delta_x;
     int32_t scroll_delta_y;
     int32_t ball_action_delta_x;
     int32_t ball_action_delta_y;
 
-#ifdef CONFIG_PMW3610_POLLING_RATE_125_SW
+#ifdef CONFIG_PMW3610_MCK_POLLING_RATE_125_SW
     int64_t last_poll_time;
     int16_t last_x;
     int16_t last_y;
+#endif
+
+#ifdef CONFIG_PMW3610_MCK_SCROLL_ACCELERATION
+    int64_t last_scroll_time;
+#endif
+
+#if CONFIG_PMW3610_MCK_ACCELERATION_ALGORITHM == 2
+    int64_t last_mouse_time;
 #endif
 
     // motion interrupt isr
@@ -50,6 +68,13 @@ struct pixart_data {
 
     // for pmw3610 smart algorithm
     bool sw_smart_flag;
+
+    // for scroll acceleration
+    int64_t last_remainder_time;
+    
+    // ✅ Hybrid power management states
+    bool is_idle;         // ZMK_ACTIVITY_IDLE state
+    bool is_sleeping;     // ZMK_ACTIVITY_SLEEP state (GPIO released)
 };
 
 // ball action config data structure

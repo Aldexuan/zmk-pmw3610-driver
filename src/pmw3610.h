@@ -75,6 +75,9 @@ extern "C" {
 #define PMW3610_POWERUP_CMD_RESET 0x5A
 #define PMW3610_POWERUP_CMD_WAKEUP 0x96
 
+/* Shutdown register command */
+#define PMW3610_SHUTDOWN_ENABLE 0xE7
+
 /* spi clock enable/disable commands */
 #define PMW3610_SPI_CLOCK_CMD_ENABLE 0xBA
 #define PMW3610_SPI_CLOCK_CMD_DISABLE 0xB5
@@ -103,23 +106,22 @@ extern "C" {
 #define PMW3610_SVALUE_TO_CPI(svalue) ((uint32_t)(svalue).val1)
 #define PMW3610_SVALUE_TO_TIME(svalue) ((uint32_t)(svalue).val1)
 
-#if defined(CONFIG_PMW3610_POLLING_RATE_250) || defined(CONFIG_PMW3610_POLLING_RATE_125_SW)
+#if defined(CONFIG_PMW3610_MCK_POLLING_RATE_250) || defined(CONFIG_PMW3610_MCK_POLLING_RATE_125_SW)
 #define PMW3610_POLLING_RATE_VALUE 0x0D
-#elif defined(CONFIG_PMW3610_POLLING_RATE_125)
+#elif defined(CONFIG_PMW3610_MCK_POLLING_RATE_125)
 #define PMW3610_POLLING_RATE_VALUE 0x00
 #else
 #error "A valid PMW3610 polling rate must be selected"
 #endif
 
-#ifdef CONFIG_PMW3610_FORCE_AWAKE
-#define PMW3610_FORCE_MODE_VALUE 0xF0
-#else
+// FORCE_AWAKE 功能已完全移除，防止意外启用导致功耗升高
+// 传感器将始终允许自动降频进入 REST 模式以节省电力
+// 如果需要高性能模式，应该通过调整 downshift 时间来实现，而不是禁用降频
 #define PMW3610_FORCE_MODE_VALUE 0x00
-#endif
 
 #define PMW3610_PERFORMANCE_VALUE (PMW3610_FORCE_MODE_VALUE | PMW3610_POLLING_RATE_VALUE)
 
-#ifdef CONFIG_PMW3610_INVERT_SCROLL_X
+#ifdef CONFIG_PMW3610_MCK_INVERT_SCROLL_X
 #define PMW3610_SCROLL_X_NEGATIVE 1
 #define PMW3610_SCROLL_X_POSITIVE -1
 #else
@@ -127,7 +129,7 @@ extern "C" {
 #define PMW3610_SCROLL_X_POSITIVE 1
 #endif
 
-#ifdef CONFIG_PMW3610_INVERT_SCROLL_Y
+#ifdef CONFIG_PMW3610_MCK_INVERT_SCROLL_Y
 #define PMW3610_SCROLL_Y_NEGATIVE 1
 #define PMW3610_SCROLL_Y_POSITIVE -1
 #else
