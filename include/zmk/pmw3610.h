@@ -79,6 +79,27 @@ int zmk_pmw3610_scroll_tick_change(int amount);
  */
 int zmk_pmw3610_scroll_tick_get(void);
 
+/**
+ * @brief Change the PMW3610 runtime automouse layer timeout.
+ *
+ * The automouse layer stays active for this many milliseconds after the
+ * trackball stops moving. The value is clamped to [100, 3000] ms.
+ *
+ * @param amount Delta in milliseconds to apply to the current timeout.
+ *               Positive lengthens the timeout, negative shortens it.
+ *
+ * @retval 0 on success.
+ * @retval -ENODEV if no PMW3610 device is available.
+ */
+int zmk_pmw3610_automouse_timeout_change(int amount);
+
+/**
+ * @brief Get the current runtime automouse layer timeout in milliseconds.
+ *
+ * @return Current timeout in ms, or -ENODEV if no device is available.
+ */
+int zmk_pmw3610_automouse_timeout_get(void);
+
 #ifdef __cplusplus
 }
 #endif

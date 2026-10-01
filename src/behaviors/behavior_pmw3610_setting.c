@@ -30,6 +30,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #define CONFIG_PMW3610_MCK_SCROLL_TICK_STEP 5
 #endif
 
+/* Default automouse-timeout step (ms) per press. */
+#ifndef CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_STEP
+#define CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_STEP 50
+#endif
+
 #if IS_ENABLED(CONFIG_ZMK_BEHAVIOR_METADATA)
 
 static const struct behavior_parameter_value_metadata pms_param_values[] = {
@@ -51,6 +56,12 @@ static const struct behavior_parameter_value_metadata pms_param_values[] = {
     {.display_name = "Scroll Speed-",
      .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
      .value = PMW_SCROLL_SPEED_DOWN},
+    {.display_name = "Automouse Timeout+",
+     .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+     .value = PMW_AUTOMOUSE_TIMEOUT_INCR},
+    {.display_name = "Automouse Timeout-",
+     .type = BEHAVIOR_PARAMETER_VALUE_TYPE_VALUE,
+     .value = PMW_AUTOMOUSE_TIMEOUT_DECR},
 };
 
 static const struct behavior_parameter_metadata_set pms_param_set[] = {
@@ -83,6 +94,12 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
     case PMW_SCROLL_SPEED_DOWN:
         /* Speed down = increase tick threshold */
         return zmk_pmw3610_scroll_tick_change(CONFIG_PMW3610_MCK_SCROLL_TICK_STEP);
+    case PMW_AUTOMOUSE_TIMEOUT_INCR:
+        /* Longer automouse layer timeout */
+        return zmk_pmw3610_automouse_timeout_change(CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_STEP);
+    case PMW_AUTOMOUSE_TIMEOUT_DECR:
+        /* Shorter automouse layer timeout */
+        return zmk_pmw3610_automouse_timeout_change(-CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_STEP);
     default:
         LOG_WRN("Unknown PMW3610 setting param %d", binding->param1);
         return -ENOTSUP;

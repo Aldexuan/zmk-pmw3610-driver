@@ -33,6 +33,10 @@ struct pixart_data {
      * CONFIG_PMW3610_MCK_SCROLL_TICK, updated by zmk_pmw3610_scroll_tick_change()).
      * Smaller = faster scrolling, larger = slower. */
     uint32_t runtime_scroll_tick;
+    /* Runtime-adjustable automouse layer timeout in milliseconds (initialised to
+     * CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS, updated by
+     * zmk_pmw3610_automouse_timeout_change()). Clamped to [100, 3000] ms. */
+    uint32_t runtime_automouse_timeout;
     int32_t scroll_delta_x;
     int32_t scroll_delta_y;
     int32_t ball_action_delta_x;

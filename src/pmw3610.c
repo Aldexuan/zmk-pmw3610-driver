@@ -72,6 +72,11 @@ static void pmw3610_settings_init(void);
 static uint32_t pmw3610_get_persisted_cpi(void);
 static int pmw3610_settings_schedule_save(void);
 
+/* Forward declaration for the singleton device getter. Defined near the bottom
+ * of this file and used by the runtime-settings API (always compiled) and by
+ * the automouse layer activation helper. */
+static const struct device *zmk_pmw3610_get_dev(void);
+
 static int (*const async_init_fn[ASYNC_INIT_STEP_COUNT])(const struct device *dev) = {
     [ASYNC_INIT_STEP_POWER_UP] = pmw3610_async_init_power_up,
     [ASYNC_INIT_STEP_CLEAR_OB1] = pmw3610_async_init_clear_ob1,
@@ -516,6 +521,10 @@ static int pmw3610_async_init_configure(const struct device *dev) {
         if (d->runtime_scroll_tick == 0) {
             d->runtime_scroll_tick = CONFIG_PMW3610_MCK_SCROLL_TICK;
         }
+        /* Initialise automouse timeout from Kconfig default on first boot. */
+        if (d->runtime_automouse_timeout == 0) {
+            d->runtime_automouse_timeout = CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+        }
         err = set_cpi(dev, d->runtime_cpi);
     }
 
@@ -645,10 +654,25 @@ static void pmw3610_async_init(struct k_work *work) {
 struct k_timer automouse_layer_timer;
 static bool automouse_triggered = false;
 
+/* Effective automouse layer timeout (ms): the runtime-adjustable value when
+ * set, otherwise the Kconfig default. Kept inside the AUTOMOUSE_LAYER guard so
+ * it is only compiled when the feature is enabled. */
+static uint32_t pmw3610_automouse_timeout_effective(void) {
+    const struct device *dev = zmk_pmw3610_get_dev();
+    if (dev == NULL) {
+        return CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+    }
+    struct pixart_data *data = dev->data;
+    if (data->runtime_automouse_timeout == 0) {
+        return CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+    }
+    return data->runtime_automouse_timeout;
+}
+
 static void activate_automouse_layer() {
     automouse_triggered = true;
     zmk_keymap_layer_activate(AUTOMOUSE_LAYER);
-    k_timer_start(&automouse_layer_timer, K_MSEC(CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS), K_NO_WAIT);
+    k_timer_start(&automouse_layer_timer, K_MSEC(pmw3610_automouse_timeout_effective()), K_NO_WAIT);
 }
 
 static void deactivate_automouse_layer(struct k_timer *timer) {
@@ -1707,4 +1731,56 @@ int zmk_pmw3610_scroll_tick_get(void) {
         return CONFIG_PMW3610_MCK_SCROLL_TICK;
     }
     return (int)data->runtime_scroll_tick;
+}
+
+/* ---------------------------------------------------------------------------
+ *  Automouse layer timeout
+ * ------------------------------------------------------------------------- */
+
+int zmk_pmw3610_automouse_timeout_change(int amount) {
+    const struct device *dev = zmk_pmw3610_get_dev();
+    if (dev == NULL) {
+        LOG_ERR("PMW3610 device not available for automouse timeout change");
+        return -ENODEV;
+    }
+
+    struct pixart_data *data = dev->data;
+
+    /* Initialise from Kconfig default if not yet set. */
+    if (data->runtime_automouse_timeout == 0) {
+        data->runtime_automouse_timeout = CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+    }
+
+    /* Positive amount = longer timeout (layer stays active longer).
+     * Negative amount = shorter timeout. */
+    int32_t target = (int32_t)data->runtime_automouse_timeout + amount;
+
+    /* Clamp to the allowed range: 100 (shortest) .. 3000 (longest). */
+    if (target < (int32_t)PMW3610_MIN_AUTOMOUSE_TIMEOUT_MS) {
+        target = PMW3610_MIN_AUTOMOUSE_TIMEOUT_MS;
+    } else if (target > (int32_t)PMW3610_MAX_AUTOMOUSE_TIMEOUT_MS) {
+        target = PMW3610_MAX_AUTOMOUSE_TIMEOUT_MS;
+    }
+
+    if ((uint32_t)target == data->runtime_automouse_timeout) {
+        LOG_INF("PMW3610 automouse timeout unchanged at %d (requested delta %d)", target, amount);
+        return 0;
+    }
+
+    data->runtime_automouse_timeout = (uint32_t)target;
+    LOG_INF("PMW3610 automouse timeout -> %d ms (delta %d)", target, amount);
+
+    return 0;
+}
+
+int zmk_pmw3610_automouse_timeout_get(void) {
+    const struct device *dev = zmk_pmw3610_get_dev();
+    if (dev == NULL) {
+        return -ENODEV;
+    }
+    struct pixart_data *data = dev->data;
+    if (data->runtime_automouse_timeout == 0) {
+        return CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+    }
+    return (int)data->runtime_automouse_timeout;
 }

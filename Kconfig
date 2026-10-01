@@ -163,6 +163,23 @@ config PMW3610_MCK_INVERT_SCROLL_Y
 config PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS
   int "Amount of milliseconds the mouse layer will be active after using the trackball"
   default 400
+  range 100 3000
+  help
+    Amount of milliseconds the automouse layer stays active after the trackball
+    stops moving. Can be adjusted at runtime with the
+    zmk,behavior-pmw3610-mck-setting behavior using
+    PMW_AUTOMOUSE_TIMEOUT_INCR / PMW_AUTOMOUSE_TIMEOUT_DECR.
+    Runtime value is clamped to 100 .. 3000 ms.
+
+config PMW3610_MCK_AUTOMOUSE_TIMEOUT_STEP
+  int "PMW3610's automouse timeout step per setting-behavior press"
+  default 50
+  range 1 3000
+  help
+    Amount of milliseconds added/removed to the automouse layer timeout each
+    time the zmk,behavior-pmw3610-mck-setting behavior is pressed with
+    PMW_AUTOMOUSE_TIMEOUT_INCR / PMW_AUTOMOUSE_TIMEOUT_DECR.
+    Larger step = coarser adjustment.
 
 config PMW3610_MCK_MOVEMENT_THRESHOLD
     int "Movement threshold for automatic mouse layer activation"

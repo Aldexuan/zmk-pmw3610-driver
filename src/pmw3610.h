@@ -99,6 +99,10 @@ extern "C" {
 #define PMW3610_MAX_CPI 3200
 #define PMW3610_MIN_CPI 200
 
+/* automouse layer timeout range (ms) */
+#define PMW3610_MAX_AUTOMOUSE_TIMEOUT_MS 3000
+#define PMW3610_MIN_AUTOMOUSE_TIMEOUT_MS 100
+
 /* write command bit position */
 #define SPI_WRITE_BIT BIT(7)
 
