@@ -70,6 +70,9 @@ static int pmw3610_async_init_configure(const struct device *dev);
  * previously-persisted CPI is applied before set_cpi() programs the sensor. */
 static void pmw3610_settings_init(void);
 static uint32_t pmw3610_get_persisted_cpi(void);
+static uint32_t pmw3610_get_persisted_snipe_cpi(void);
+static uint32_t pmw3610_get_persisted_scroll_tick(void);
+static uint32_t pmw3610_get_persisted_automouse_timeout(void);
 static int pmw3610_settings_schedule_save(void);
 
 /* Forward declaration for the singleton device getter. Defined near the bottom
@@ -513,17 +516,39 @@ static int pmw3610_async_init_configure(const struct device *dev) {
         } else if (d->runtime_cpi == 0) {
             d->runtime_cpi = CONFIG_PMW3610_MCK_CPI;
         }
-        /* Initialise snipe CPI from Kconfig default on first boot. */
+        /* Snipe CPI: adopt the persisted value while still at the cold-boot
+         * default (0); otherwise fall back to the Kconfig default. On PM
+         * resume the RAM value is preserved and re-used. */
         if (d->runtime_snipe_cpi == 0) {
-            d->runtime_snipe_cpi = CONFIG_PMW3610_MCK_SNIPE_CPI;
+            uint32_t persisted = pmw3610_get_persisted_snipe_cpi();
+            if (persisted >= PMW3610_MIN_CPI && persisted <= PMW3610_MAX_CPI) {
+                d->runtime_snipe_cpi = persisted;
+                LOG_INF("Applied persisted PMW3610 snipe CPI=%u", d->runtime_snipe_cpi);
+            } else {
+                d->runtime_snipe_cpi = CONFIG_PMW3610_MCK_SNIPE_CPI;
+            }
         }
-        /* Initialise scroll tick from Kconfig default on first boot. */
+        /* Scroll tick: same cold-boot adopt-persisted pattern. */
         if (d->runtime_scroll_tick == 0) {
-            d->runtime_scroll_tick = CONFIG_PMW3610_MCK_SCROLL_TICK;
+            uint32_t persisted = pmw3610_get_persisted_scroll_tick();
+            if (persisted >= 1 && persisted <= 200) {
+                d->runtime_scroll_tick = persisted;
+                LOG_INF("Applied persisted PMW3610 scroll tick=%u", d->runtime_scroll_tick);
+            } else {
+                d->runtime_scroll_tick = CONFIG_PMW3610_MCK_SCROLL_TICK;
+            }
         }
-        /* Initialise automouse timeout from Kconfig default on first boot. */
+        /* Automouse timeout: same cold-boot adopt-persisted pattern. */
         if (d->runtime_automouse_timeout == 0) {
-            d->runtime_automouse_timeout = CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+            uint32_t persisted = pmw3610_get_persisted_automouse_timeout();
+            if (persisted >= (uint32_t)PMW3610_MIN_AUTOMOUSE_TIMEOUT_MS &&
+                persisted <= (uint32_t)PMW3610_MAX_AUTOMOUSE_TIMEOUT_MS) {
+                d->runtime_automouse_timeout = persisted;
+                LOG_INF("Applied persisted PMW3610 automouse timeout=%u ms",
+                        d->runtime_automouse_timeout);
+            } else {
+                d->runtime_automouse_timeout = CONFIG_PMW3610_MCK_AUTOMOUSE_TIMEOUT_MS;
+            }
         }
         err = set_cpi(dev, d->runtime_cpi);
     }
@@ -1463,12 +1488,28 @@ static const struct device *zmk_pmw3610_get_dev(void);
 
 #define PMW3610_SETTINGS_SUBTREE "pmw3610_mck"
 #define PMW3610_SETTINGS_KEY_CPI "cpi"
+#define PMW3610_SETTINGS_KEY_SNIPE_CPI "snipe_cpi"
+#define PMW3610_SETTINGS_KEY_SCROLL_TICK "scroll_tick"
+#define PMW3610_SETTINGS_KEY_AUTOMOUSE_TIMEOUT "automouse_timeout"
 
-/* Value read from flash during settings_load, applied during async init
+/* Values read from flash during settings_load, applied during async init
  * before the initial set_cpi() call runs. Zero means "no stored value". */
 static uint32_t pmw3610_persisted_cpi;
+static uint32_t pmw3610_persisted_snipe_cpi;
+static uint32_t pmw3610_persisted_scroll_tick;
+static uint32_t pmw3610_persisted_automouse_timeout;
 
 static struct k_work_delayable pmw3610_save_work;
+
+static int pmw3610_save_u32(const char *key, uint32_t value) {
+    int err = settings_save_one(key, &value, sizeof(value));
+    if (err) {
+        LOG_ERR("Failed to persist PMW3610 %s: %d", key, err);
+    } else {
+        LOG_INF("Persisted PMW3610 %s=%u to flash", key, value);
+    }
+    return err;
+}
 
 static void pmw3610_save_work_handler(struct k_work *work) {
     ARG_UNUSED(work);
@@ -1479,14 +1520,13 @@ static void pmw3610_save_work_handler(struct k_work *work) {
     }
     struct pixart_data *data = dev->data;
 
-    uint32_t value = data->runtime_cpi;
-    int err = settings_save_one(PMW3610_SETTINGS_SUBTREE "/" PMW3610_SETTINGS_KEY_CPI, &value,
-                                sizeof(value));
-    if (err) {
-        LOG_ERR("Failed to persist PMW3610 CPI: %d", err);
-    } else {
-        LOG_INF("Persisted PMW3610 CPI=%u to flash", value);
-    }
+    pmw3610_save_u32(PMW3610_SETTINGS_SUBTREE "/" PMW3610_SETTINGS_KEY_CPI, data->runtime_cpi);
+    pmw3610_save_u32(PMW3610_SETTINGS_SUBTREE "/" PMW3610_SETTINGS_KEY_SNIPE_CPI,
+                     data->runtime_snipe_cpi);
+    pmw3610_save_u32(PMW3610_SETTINGS_SUBTREE "/" PMW3610_SETTINGS_KEY_SCROLL_TICK,
+                     data->runtime_scroll_tick);
+    pmw3610_save_u32(PMW3610_SETTINGS_SUBTREE "/" PMW3610_SETTINGS_KEY_AUTOMOUSE_TIMEOUT,
+                     data->runtime_automouse_timeout);
 }
 
 static int pmw3610_settings_schedule_save(void) {
@@ -1496,21 +1536,34 @@ static int pmw3610_settings_schedule_save(void) {
 
 static int pmw3610_settings_restore(const char *name, size_t len, settings_read_cb read_cb,
                                     void *cb_arg) {
-    if (strcmp(name, PMW3610_SETTINGS_KEY_CPI) != 0) {
+    uint32_t *dest = NULL;
+
+    if (strcmp(name, PMW3610_SETTINGS_KEY_CPI) == 0) {
+        dest = &pmw3610_persisted_cpi;
+    } else if (strcmp(name, PMW3610_SETTINGS_KEY_SNIPE_CPI) == 0) {
+        dest = &pmw3610_persisted_snipe_cpi;
+    } else if (strcmp(name, PMW3610_SETTINGS_KEY_SCROLL_TICK) == 0) {
+        dest = &pmw3610_persisted_scroll_tick;
+    } else if (strcmp(name, PMW3610_SETTINGS_KEY_AUTOMOUSE_TIMEOUT) == 0) {
+        dest = &pmw3610_persisted_automouse_timeout;
+    } else {
+        /* Unknown key inside our subtree - ignore without error. */
         return 0;
     }
-    if (len != sizeof(pmw3610_persisted_cpi)) {
-        LOG_WRN("Stored CPI has unexpected size %u; ignoring", (unsigned int)len);
+
+    if (len != sizeof(uint32_t)) {
+        LOG_WRN("Stored PMW3610 setting '%s' has unexpected size %u; ignoring", name,
+                (unsigned int)len);
         return 0;
     }
     uint32_t value;
     int rc = read_cb(cb_arg, &value, sizeof(value));
     if (rc < 0) {
-        LOG_ERR("Failed to read stored CPI: %d", rc);
+        LOG_ERR("Failed to read stored PMW3610 setting '%s': %d", name, rc);
         return rc;
     }
-    pmw3610_persisted_cpi = value;
-    LOG_INF("Loaded persisted PMW3610 CPI=%u", value);
+    *dest = value;
+    LOG_INF("Loaded persisted PMW3610 %s=%u", name, value);
     return 0;
 }
 
@@ -1520,6 +1573,11 @@ static struct settings_handler pmw3610_settings_conf = {
 };
 
 static uint32_t pmw3610_get_persisted_cpi(void) { return pmw3610_persisted_cpi; }
+static uint32_t pmw3610_get_persisted_snipe_cpi(void) { return pmw3610_persisted_snipe_cpi; }
+static uint32_t pmw3610_get_persisted_scroll_tick(void) { return pmw3610_persisted_scroll_tick; }
+static uint32_t pmw3610_get_persisted_automouse_timeout(void) {
+    return pmw3610_persisted_automouse_timeout;
+}
 
 /* One-shot lazy init. Safe to call repeatedly - only the first call does
  * anything. Invoked from pmw3610_async_init_configure() so it runs on the
@@ -1554,6 +1612,9 @@ static void pmw3610_settings_init(void) {
 static inline void pmw3610_settings_init(void) {}
 static inline int pmw3610_settings_schedule_save(void) { return 0; }
 static inline uint32_t pmw3610_get_persisted_cpi(void) { return 0; }
+static inline uint32_t pmw3610_get_persisted_snipe_cpi(void) { return 0; }
+static inline uint32_t pmw3610_get_persisted_scroll_tick(void) { return 0; }
+static inline uint32_t pmw3610_get_persisted_automouse_timeout(void) { return 0; }
 
 #endif /* CONFIG_SETTINGS */
 
@@ -1665,6 +1726,10 @@ int zmk_pmw3610_snipe_cpi_change(int amount) {
     data->runtime_snipe_cpi = (uint32_t)target;
     LOG_INF("PMW3610 snipe CPI -> %d (delta %d)", target, amount);
 
+    /* Persist the new value. The flash write is debounced inside
+     * pmw3610_save_work_handler() - bursty presses collapse into one write. */
+    pmw3610_settings_schedule_save();
+
     /* If currently in SNIPE mode, push the change to the sensor immediately. */
     if (data->ready && data->curr_mode == SNIPE) {
         return set_cpi_if_needed(dev, data->runtime_snipe_cpi);
@@ -1718,6 +1783,10 @@ int zmk_pmw3610_scroll_tick_change(int amount) {
     data->runtime_scroll_tick = (uint32_t)target;
     LOG_INF("PMW3610 scroll tick -> %d (delta %d)", target, amount);
 
+    /* Persist the new value. The flash write is debounced inside
+     * pmw3610_save_work_handler() - bursty presses collapse into one write. */
+    pmw3610_settings_schedule_save();
+
     return 0;
 }
 
@@ -1769,6 +1838,10 @@ int zmk_pmw3610_automouse_timeout_change(int amount) {
 
     data->runtime_automouse_timeout = (uint32_t)target;
     LOG_INF("PMW3610 automouse timeout -> %d ms (delta %d)", target, amount);
+
+    /* Persist the new value. The flash write is debounced inside
+     * pmw3610_save_work_handler() - bursty presses collapse into one write. */
+    pmw3610_settings_schedule_save();
 
     return 0;
 }
